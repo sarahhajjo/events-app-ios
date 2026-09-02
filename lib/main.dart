@@ -5,7 +5,7 @@ import 'package:eventsapp/cubit/auth_cubit.dart';
 import 'package:eventsapp/cubit/theme_cubit.dart';
 import 'package:eventsapp/cubit/language_cubit.dart';
 import 'package:eventsapp/cubit/user_cubit.dart';
-import 'package:eventsapp/cubit/notification_cubit.dart'; 
+import 'package:eventsapp/cubit/notification_cubit.dart';
 // 🌟 استيرادات الـ Favorites الجديدة
 import 'package:eventsapp/cubit/favorites_cubit.dart';
 import 'package:eventsapp/features/chat/repository/favorites_repository.dart';
@@ -13,7 +13,7 @@ import 'package:eventsapp/repositories/notification_repository.dart';
 
 import 'package:eventsapp/repositories/user_repository.dart';
 import 'package:eventsapp/screens/auth/splash_screen.dart';
-import 'package:eventsapp/screens/home/home_page.dart'; 
+import 'package:eventsapp/screens/home/home_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -21,12 +21,12 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'generated/app_localizations.dart';
 import 'core/theme/app_theme.dart';
 import 'cache/cache_helper.dart';
-import 'core/services/deep_link_service.dart'; 
+import 'core/services/deep_link_service.dart';
 import 'core/api/end_ponits.dart';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart'; 
-import 'firebase_options.dart'; 
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'firebase_options.dart';
 import 'core/services/notification_service.dart';
 
 // 🌟 دالة استقبال الإشعارات في الخلفية (حل مشكلة الكراش)
@@ -40,16 +40,36 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // 🚨 كود التقاط الأخطاء لإظهار الشاشة الحمراء بدلاً من البيضاء 🚨
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.red.shade900,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              "🚨 ERROR DETECTED:\n\n${details.exceptionAsString()}\n\nSTACK TRACE:\n${details.stack.toString()}",
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              textDirection: TextDirection.ltr,
+            ),
+          ),
+        ),
+      ),
+    );
+  };
+
   await CacheHelper().init();
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+
   // ربط دالة الخلفية
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-  
+
   try {
     NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
@@ -60,18 +80,18 @@ Future<void> main() async {
   } catch (e) {
     print("Error requesting notification permission: $e");
   }
-  
+
   NotificationService notificationService = NotificationService();
   await notificationService.initialize();
 
   final String? savedToken = CacheHelper().getData(key: ApiKey.token);
-  
+
   Widget initialScreen;
-  bool shouldUploadTokenImmediately = false; 
+  bool shouldUploadTokenImmediately = false;
 
   if (savedToken != null && savedToken.isNotEmpty) {
-    initialScreen = const HomePage(); 
-    shouldUploadTokenImmediately = true; 
+    initialScreen = const HomePage();
+    shouldUploadTokenImmediately = true;
   } else {
     initialScreen = const SplashScreen();
   }
@@ -98,10 +118,10 @@ Future<void> main() async {
 
 class RoyalEventsApp extends StatelessWidget {
   final Widget startScreen;
-  final bool uploadTokenAtStart; 
+  final bool uploadTokenAtStart;
 
   const RoyalEventsApp({
-    super.key, 
+    super.key,
     required this.startScreen,
     required this.uploadTokenAtStart,
   });
@@ -114,10 +134,10 @@ class RoyalEventsApp extends StatelessWidget {
         providers: [
           BlocProvider(
             create: (context) => UserCubit(
-              UserRepository(api: context.read<ApiConsumer>())
+                UserRepository(api: context.read<ApiConsumer>())
             ),
           ),
-          
+
           BlocProvider(
             create: (context) => AuthCubit(context.read<ApiConsumer>(), CacheHelper()),
           ),
@@ -136,11 +156,11 @@ class RoyalEventsApp extends StatelessWidget {
               return cubit;
             },
           ),
-          
+
           // 🌟 إضافة الـ FavoritesCubit
           BlocProvider(
             create: (context) => FavoritesCubit(
-              FavoritesRepository(apiConsumer: context.read<ApiConsumer>())
+                FavoritesRepository(apiConsumer: context.read<ApiConsumer>())
             ),
           ),
 
@@ -155,9 +175,9 @@ class RoyalEventsApp extends StatelessWidget {
                 String languageCode = context.read<LanguageCubit>().languageCode;
 
                 return MaterialApp(
-                  navigatorKey: navigatorKey, 
+                  navigatorKey: navigatorKey,
                   onGenerateTitle: (context) =>
-                      AppLocalizations.of(context)!.appTitle,
+                  AppLocalizations.of(context)!.appTitle,
                   debugShowCheckedModeBanner: false,
                   locale: Locale(languageCode),
                   supportedLocales: const [Locale('en'), Locale('ar')],
@@ -170,7 +190,7 @@ class RoyalEventsApp extends StatelessWidget {
                   theme: AppTheme.lightTheme,
                   darkTheme: AppTheme.darkTheme,
                   themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-                  home: startScreen, 
+                  home: startScreen,
                 );
               },
             );
