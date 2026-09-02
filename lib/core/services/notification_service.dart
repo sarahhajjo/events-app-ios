@@ -12,29 +12,38 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   Future<void> initialize() async {
-    
-    // 1. طلب إذن المستخدم
-    NotificationSettings settings = await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
 
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('✔️ وافق المستخدم على استقبال الإشعارات.');
-    } else {
-      print('❌ رفض المستخدم إعطاء إذن الإشعارات.');
+    // 1. طلب إذن المستخدم
+    try {
+      NotificationSettings settings = await _messaging.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        print('✔️ وافق المستخدم على استقبال الإشعارات.');
+      } else {
+        print('❌ رفض المستخدم إعطاء إذن الإشعارات.');
+      }
+    } catch (e) {
+      print("⚠️ خطأ أثناء طلب الصلاحية: $e");
     }
 
-    // 2. جلب الـ FCM Token وطباعته
-    String? token = await _messaging.getToken();
-    print("\n=================== FCM TOKEN ===================");
-    print(token); 
-    print("=================================================\n");
+    // 2. جلب الـ FCM Token وطباعته (هنا وضعنا الحماية لمنع كراش الشاشة الحمراء)
+    try {
+      String? token = await _messaging.getToken();
+      print("\n=================== FCM TOKEN ===================");
+      print(token);
+      print("=================================================\n");
+    } catch (e) {
+      print("\n⚠️ تم تجاهل خطأ الإشعارات (APNs بسبب الحساب المجاني):");
+      print("$e\n");
+    }
 
     // 3. إعدادات الأندرويد المحلية
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
     await _localNotificationsPlugin.initialize(
       const InitializationSettings(
