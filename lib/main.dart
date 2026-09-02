@@ -41,7 +41,7 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🚨 كود التقاط الأخطاء لإظهار الشاشة الحمراء بدلاً من البيضاء 🚨
+  // 🚨 التقاط أخطاء واجهة المستخدم (الـ Widgets)
   ErrorWidget.builder = (FlutterErrorDetails details) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
@@ -51,7 +51,7 @@ Future<void> main() async {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Text(
-              "🚨 ERROR DETECTED:\n\n${details.exceptionAsString()}\n\nSTACK TRACE:\n${details.stack.toString()}",
+              "🚨 ERROR DETECTED (Widget):\n\n${details.exceptionAsString()}\n\nSTACK TRACE:\n${details.stack.toString()}",
               style: const TextStyle(color: Colors.white, fontSize: 14),
               textDirection: TextDirection.ltr,
             ),
@@ -61,59 +61,82 @@ Future<void> main() async {
     );
   };
 
-  await CacheHelper().init();
-
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  // ربط دالة الخلفية
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
+  // 🚨 تغليف كل عمليات التهيئة لاصطياد سبب توقف التطبيق (الشاشة البيضاء)
   try {
-    NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
+    await CacheHelper().init();
+
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
-    print('User granted notification permission: ${settings.authorizationStatus}');
-  } catch (e) {
-    print("Error requesting notification permission: $e");
+
+    // ربط دالة الخلفية
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    try {
+      NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      print('User granted notification permission: ${settings.authorizationStatus}');
+    } catch (e) {
+      print("Error requesting notification permission: $e");
+    }
+
+    NotificationService notificationService = NotificationService();
+    await notificationService.initialize();
+
+    final String? savedToken = CacheHelper().getData(key: ApiKey.token);
+
+    Widget initialScreen;
+    bool shouldUploadTokenImmediately = false;
+
+    if (savedToken != null && savedToken.isNotEmpty) {
+      initialScreen = const HomePage();
+      shouldUploadTokenImmediately = true;
+    } else {
+      initialScreen = const SplashScreen();
+    }
+
+    SystemChrome.setSystemUIOverlayStyle(
+      const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+      ),
+    );
+
+    try {
+      final deepLinkService = DeepLinkService(navigatorKey);
+      await deepLinkService.init();
+    } catch (e) {
+      print("Deep link initialization error: $e");
+    }
+
+    // إذا تمت كل الخطوات السابقة بنجاح، سيفتح التطبيق بشكل طبيعي
+    runApp(RoyalEventsApp(
+      startScreen: initialScreen,
+      uploadTokenAtStart: shouldUploadTokenImmediately,
+    ));
+
+  } catch (e, stackTrace) {
+    // 🚨 إذا فشل أي كود أثناء الإقلاع، ستظهر هذه الشاشة الحمراء لتخبرنا بالسبب فوراً
+    runApp(MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: Colors.red.shade900,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Text(
+              "🚨 ERROR IN MAIN (Init Failed):\n\n${e.toString()}\n\nSTACK TRACE:\n$stackTrace",
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              textDirection: TextDirection.ltr,
+            ),
+          ),
+        ),
+      ),
+    ));
   }
-
-  NotificationService notificationService = NotificationService();
-  await notificationService.initialize();
-
-  final String? savedToken = CacheHelper().getData(key: ApiKey.token);
-
-  Widget initialScreen;
-  bool shouldUploadTokenImmediately = false;
-
-  if (savedToken != null && savedToken.isNotEmpty) {
-    initialScreen = const HomePage();
-    shouldUploadTokenImmediately = true;
-  } else {
-    initialScreen = const SplashScreen();
-  }
-
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ),
-  );
-
-  try {
-    final deepLinkService = DeepLinkService(navigatorKey);
-    await deepLinkService.init();
-  } catch (e) {
-    print("Deep link initialization error: $e");
-  }
-
-  runApp(RoyalEventsApp(
-    startScreen: initialScreen,
-    uploadTokenAtStart: shouldUploadTokenImmediately,
-  ));
 }
 
 class RoyalEventsApp extends StatelessWidget {
